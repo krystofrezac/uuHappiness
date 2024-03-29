@@ -27,8 +27,8 @@ chrome.runtime.onMessage.addListener(async (message) => {
 
 	if (![undefined, null].includes(matchingQuestion.correctAnswerIndex)) {
 		if (matchingQuestion.answerList) {
-			const correctAnswer = matchingQuestion.answerList[matchingQuestion.correctAnswerIndex].cs
-			document.getElementById("answer").innerText = correctAnswer
+			const correctAnswer = matchingQuestion.answerList[matchingQuestion.correctAnswerIndex]
+			document.getElementById("answer").innerText = typeof correctAnswer === 'string' ? correctAnswer : correctAnswer.cs
 		} else {
 			document.getElementById("answer").innerText = matchingQuestion.correctAnswerIndex === 0 ? "Ano" : "Ne"
 		}
@@ -36,15 +36,15 @@ chrome.runtime.onMessage.addListener(async (message) => {
 	}
 
 	if (![undefined, null].includes(matchingQuestion.correctAnswerIndexList)) {
-		const correctAnswer = matchingQuestion.answerList.filter((_, index) => matchingQuestion.correctAnswerIndexList.includes(index)).map(answer => "- " + answer.cs).join("\n")
+		const correctAnswer = matchingQuestion.answerList.filter((_, index) => matchingQuestion.correctAnswerIndexList.includes(index)).map(answer => "- " + (typeof answer === 'string' ? answer: answer.cs)).join("\n")
 		document.getElementById("answer").innerText = correctAnswer
 		return
 	}
 
 	if (![undefined, null].includes(matchingQuestion.correctAnswerOrder)) {
 		const text = matchingQuestion.correctAnswerOrder.map((answerIndex, index) => {
-			const anwser = matchingQuestion.answerList[answerIndex].cs
-			return `${index + 1}. ${anwser}`
+			const anwser = matchingQuestion.answerList[answerIndex]
+			return `${index + 1}. ${typeof anwser === 'string' ? anwser: anwser.cs}`
 		}).join("\n")
 		document.getElementById("answer").innerText = text
 		return
@@ -53,9 +53,9 @@ chrome.runtime.onMessage.addListener(async (message) => {
 
 	if (![undefined, null].includes(matchingQuestion.pairList)) {
 		const text = matchingQuestion.pairList.map(({ answerIndex, pairAnswerIndex }) => {
-			const answer = matchingQuestion.answerList[0][answerIndex].cs;
-			const pair = matchingQuestion.answerList[1][pairAnswerIndex].cs;
-			return `${answer}: ${pair}`
+			const answer = matchingQuestion.answerList[0][answerIndex];
+			const pair = matchingQuestion.answerList[1][pairAnswerIndex];
+			return `${typeof answer === 'string' ? answer : answer.cs}: ${typeof pair === 'string' ? pair : pair.cs}`
 		}).join("\n")
 		document.getElementById("answer").innerText = text
 		return
