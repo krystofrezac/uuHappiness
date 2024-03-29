@@ -2,7 +2,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
 	if (message.type !== "question")
 		return
 
-	const clearedQuestion = message.question.replaceAll(/\s+/g, " ").trim()
+	const clearedQuestion = message.question.replace("__", " ").replaceAll(/\s+/g, " ").trim()
 	const questionWords = clearedQuestion.split(" ")
 
 	document.getElementById("question").innerText = clearedQuestion
