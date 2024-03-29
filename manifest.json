@@ -1,36 +1,24 @@
 {
-	"manifest_version": 3,
-	"name": "uuHappiness",
-	"description": "Extension that will make you have when using uuCourseKit",
-	"version": "0.1",
-	"permissions": [
-		"storage",
-		"unlimitedStorage",
-    "nativeMessaging"
-	],
-	"content_scripts": [
-		{
-			"matches": [
-				"https://uuapp.plus4u.net/uu-coursekit*"
-			],
-			"js": [
-				"./content.js"
-			],
-			"run_at": "document_start",
-			"all_frames": true
-		}
-	],
-	"action": {
-		"default_popup": "popup.html"
-	},
-	"web_accessible_resources": [
-		{
-			"resources": [
-				"injected.js"
-			],
-			"matches": [
-				"<all_urls>"
-			]
-		}
-	]
+  "manifest_version": 3,
+  "name": "uuHappiness",
+  "description": "Extension that will make you happy when using uuCourseKit",
+  "version": "0.1",
+  "permissions": ["storage", "unlimitedStorage", "nativeMessaging"],
+  "content_scripts": [
+    {
+      "matches": ["https://uuapp.plus4u.net/uu-coursekit*"],
+      "js": ["./src/content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

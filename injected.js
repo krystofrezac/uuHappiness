@@ -20,34 +20,36 @@
 //     };
 // })(XMLHttpRequest);
 
-
-
 const { fetch: origFetch } = window;
 window.fetch = async (...args) => {
-    const response = await origFetch(...args);
-    const url = response.url
-    if (url.includes("loadLessonForStudent"))
-        response
-            .clone()
-            .json() // maybe json(), text(), blob()
-            .then(body => {
-                window.postMessage({ type: 'loadLessonForStudenResponse', body }, '*'); // send to content script
-            })
-            .catch(err => console.error(err));
-    return response;
+  const response = await origFetch(...args);
+  const url = response.url;
+  if (url.includes("loadLessonForStudent"))
+    response
+      .clone()
+      .json() // maybe json(), text(), blob()
+      .then((body) => {
+        window.postMessage({ type: "loadLessonForStudenResponse", body }, "*"); // send to content script
+      })
+      .catch((err) => console.error(err));
+  return response;
 };
 
-console.log("sending", window.location.href)
-window.postMessage({ type: "url", url: window.location.href })
+console.log("sending", window.location.href);
+window.postMessage({ type: "url", url: window.location.href });
 
 setInterval(() => {
-    let question = document.querySelectorAll("div[class*=uu-coursekit-question-t]")?.[1]?.children?.[1]?.textContent
-    if (!question) return
+  let question = document.querySelectorAll(
+    "div[class*=uu-coursekit-question-t]",
+  )?.[1]?.children?.[1]?.textContent;
+  if (!question) return;
 
-    const isMultiPlaceholder = /Odpověď \d+. z \d+/.test(question)  
-    if(isMultiPlaceholder) {
-        question = document.querySelectorAll("div[class*=uu-coursekit-question-t]")?.[1]?.children?.[3]?.textContent
-    }
+  const isMultiPlaceholder = /Odpověď \d+. z \d+/.test(question);
+  if (isMultiPlaceholder) {
+    question = document.querySelectorAll(
+      "div[class*=uu-coursekit-question-t]",
+    )?.[1]?.children?.[3]?.textContent;
+  }
 
-    window.postMessage({ type: "question", question })
-}, 1_000)
+  window.postMessage({ type: "question", question });
+}, 1_000);

@@ -1,13 +1,17 @@
-var s = document.createElement("script");
-s.src = chrome.runtime.getURL("injected.js");
-s.onload = function () {
-  this.remove();
+const injectScript = () => {
+  const script = document.createElement("script");
+  script.src = chrome.runtime.getURL("src/injected.js");
+  (document.head || document.documentElement).appendChild(script);
 };
-(document.head || document.documentElement).appendChild(s);
 
+injectScript();
+
+// TODO: make it beatifull
 const handleLoadLessonForStudent = async (data) => {
-  alert("receive" + courseId);
-  const { courseId, questionMap } = data;
+  const {
+    courseId,
+    body: { questionMap },
+  } = data;
 
   const savedQuestionMap = await chrome.storage.local
     .get([courseId, "questionMap"])
@@ -48,28 +52,22 @@ const handleLoadLessonForStudent = async (data) => {
   alert("uuHappiness: Loaded");
 };
 
-const handleUrl = (url) => {
-  chrome.storage.local
-    .get([courseId, "questionMap"])
-    .then((courseQuestions) =>
-      console.log(
-        "uuHappiness: Course questions",
-        courseQuestions[courseId]?.questionMap,
-      ),
-    );
-};
-
 window.addEventListener("message", (e) => {
   if (e.data.type === "loadLessonForStudenResponse")
     handleLoadLessonForStudent(e.data);
 
-  if (e.data.type === "question") {
-    try {
-      chrome.runtime.sendMessage(undefined, {
+  if (e.data.type === "questionChange") {
+    chrome.runtime.sendMessage(
+      undefined,
+      {
         type: "questionChange",
-        questionId: e.data.questionId,
+        task: e.data.task,
         courseId: e.data.courseId,
-      });
-    } catch {}
+      },
+      () => {
+        // Here to silence chrome errors
+        chrome.runtime.lastError;
+      },
+    );
   }
 });
