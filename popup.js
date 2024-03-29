@@ -1,8 +1,11 @@
+const clearText = (text) => 
+	text.replaceAll("__", " ").replaceAll(/<\/?[uU]{2}[^>]*>/g, "").replaceAll(/\s+/g, " ").trim()
+
 chrome.runtime.onMessage.addListener(async (message) => {
 	if (message.type !== "question")
 		return
 
-	const clearedQuestion = message.question.replace("__", " ").replaceAll(/\s+/g, " ").trim()
+	const clearedQuestion = clearText(message.question)
 	const questionWords = clearedQuestion.split(" ")
 
 	document.getElementById("question").innerText = clearedQuestion
@@ -10,7 +13,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
 	const questionMap = await chrome.storage.local.get([message.courseId, "questionMap"]).then(a => a[message.courseId]?.questionMap)
 
 	const matchingQuestions = Object.values(questionMap).filter(question =>
-		questionWords.every(questionWord => question.task && question.task.cs.replaceAll(/<\/?[uU]{2}[^>]*>/g, "").includes(questionWord))
+		questionWords.every(questionWord => question.task && clearText(question.task.cs).includes(questionWord))
 	)
 
 	const matchingQuestion = matchingQuestions?.[0]
@@ -36,6 +39,16 @@ chrome.runtime.onMessage.addListener(async (message) => {
 	}
 
 	if (![undefined, null].includes(matchingQuestion.correctAnswerIndexList)) {
+		const isMultiPlacholder = Array.isArray(matchingQuestion.answerList[0])
+		if(isMultiPlacholder){
+			const correctAnswer = matchingQuestion.answerList.map((_, index)=>{
+				const correctAnswer = matchingQuestion.answerList[index].filter((_, index) => matchingQuestion.correctAnswerIndexList.includes(index)).map(answer => "- " + (typeof answer === 'string' ? answer: answer.cs)).join("\n")
+				
+				return `--${index+1}--\n${correctAnswer}\n\n`
+			}).join("\n")
+			document.getElementById("answer").innerText = correctAnswer
+			return
+		}
 		const correctAnswer = matchingQuestion.answerList.filter((_, index) => matchingQuestion.correctAnswerIndexList.includes(index)).map(answer => "- " + (typeof answer === 'string' ? answer: answer.cs)).join("\n")
 		document.getElementById("answer").innerText = correctAnswer
 		return

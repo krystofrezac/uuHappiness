@@ -41,8 +41,13 @@ console.log("sending", window.location.href)
 window.postMessage({ type: "url", url: window.location.href })
 
 setInterval(() => {
-    const question = document.querySelectorAll("div[class*=uu-coursekit-question-t]")?.[1]?.children?.[1]?.textContent
+    let question = document.querySelectorAll("div[class*=uu-coursekit-question-t]")?.[1]?.children?.[1]?.textContent
     if (!question) return
+
+    const isMultiPlaceholder = /Odpověď \d+. z \d+/.test(question)  
+    if(isMultiPlaceholder) {
+        question = document.querySelectorAll("div[class*=uu-coursekit-question-t]")?.[1]?.children?.[3]?.textContent
+    }
 
     window.postMessage({ type: "question", question })
 }, 1_000)
