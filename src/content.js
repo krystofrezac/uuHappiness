@@ -24,6 +24,7 @@ const handleLoadLessonForStudent = async (data) => {
         pairList,
         correctAnswerIndexList,
         correctAnswerOrder,
+        tripletList,
       } = value;
       if (correctAnswerIndex !== null && correctAnswerIndex !== undefined)
         return true;
@@ -38,6 +39,8 @@ const handleLoadLessonForStudent = async (data) => {
 
       if (correctAnswerOrder !== null && correctAnswerOrder !== undefined)
         return true;
+
+      if (tripletList !== null && tripletList !== undefined) return true;
 
       return false;
     }),

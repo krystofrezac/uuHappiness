@@ -1,4 +1,4 @@
-const getTaskText = (task) => {
+const getMaybeLocalizedText = (task) => {
   if (typeof task === "string") return task;
 
   return task.cs;
@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
     .then((course) => course[courseId]?.questionMap);
 
   const question = Object.values(questions).find((question) => {
-    return getTaskText(question.task) === task;
+    return getMaybeLocalizedText(question.task) === task;
   });
 
   if (!question) {
@@ -80,14 +80,32 @@ chrome.runtime.onMessage.addListener(async (message) => {
 
   if (![undefined, null].includes(question.pairList)) {
     const text = question.pairList
-      .map(({ answerIndex, pairAnswerIndex }) => {
+      .map(({ answerIndex, pairAnswerIndex }, index) => {
         const answer = question.answerList[0][answerIndex];
         const pair = question.answerList[1][pairAnswerIndex];
-        return `${typeof answer === "string" ? answer : answer.cs}: ${
-          typeof pair === "string" ? pair : pair.cs
-        }`;
+        return `${index + 1}:\n${getMaybeLocalizedText(
+          answer,
+        )}\n${getMaybeLocalizedText(pair)}`;
       })
-      .join("\n");
+      .join("\n\n");
+    document.getElementById("answer").innerText = text;
+    return;
+  }
+
+  if (![undefined, null].includes(question.tripletList)) {
+    console.log("question", question);
+    const text = question.tripletList
+      .map(([first, second, third], index) => {
+        const firstAnswer = question.answerList[0][first];
+        const secondAnswer = question.answerList[1][second];
+        const thirdAnswer = question.answerList[2][third];
+        return `${index + 1}:\n${getMaybeLocalizedText(
+          firstAnswer,
+        )}\n${getMaybeLocalizedText(secondAnswer)}\n${getMaybeLocalizedText(
+          thirdAnswer,
+        )}`;
+      })
+      .join("\n\n");
     document.getElementById("answer").innerText = text;
     return;
   }

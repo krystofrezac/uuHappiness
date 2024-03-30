@@ -89,7 +89,6 @@ const watchCurrentQuestion = () => {
     if (!rawTask) return;
 
     const rawTaskDecoded = decodeURIComponent(rawTask);
-    console.log(rawTaskDecoded);
 
     window.postMessage({
       type: "questionChange",
