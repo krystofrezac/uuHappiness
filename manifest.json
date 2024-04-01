@@ -3,6 +3,12 @@
   "name": "uuHappiness",
   "description": "Extension that will make you happy when using uuCourseKit",
   "version": "0.1",
+  "icons": {
+    "16": "src/assets/icon16.png",
+    "32": "src/assets/icon32.png",
+    "48": "src/assets/icon48.png",
+    "128": "src/assets/icon128.png"
+  },
   "permissions": ["storage", "unlimitedStorage", "nativeMessaging"],
   "content_scripts": [
     {
@@ -12,12 +18,9 @@
       "all_frames": true
     }
   ],
-  "action": {
-    "default_popup": "popup.html"
-  },
   "web_accessible_resources": [
     {
-      "resources": ["src/injected.js"],
+      "resources": ["src/injected.js", "src/assets/icon128.png"],
       "matches": ["<all_urls>"]
     }
   ]
