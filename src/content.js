@@ -35,12 +35,11 @@ const listenForMessages = () => {
 
     const questionMapEntries = Object.entries(lesson.questionMap);
     const questionMapWithAnswersEntries = questionMapEntries.filter(
-      ([_, question]) => {
+      ([_, question]) =>
         answerFields.some((answerField) => {
           const fieldValue = question[answerField];
           return fieldValue !== undefined && fieldValue !== null;
-        });
-      },
+        }),
     );
     const quetsionMapWithAnswers = Object.fromEntries(
       questionMapWithAnswersEntries,

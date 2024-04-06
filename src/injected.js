@@ -25,10 +25,7 @@ const overrideFetch = () => {
       .clone()
       .json()
       .then((body) => {
-        window.postMessage(
-          { type: "loadLessonForStudenResponse", lesson: body, courseId },
-          "*",
-        );
+        window.postMessage({ type: "saveLesson", lesson: body, courseId }, "*");
       });
     alert("uuHappiness: Loaded");
   };
