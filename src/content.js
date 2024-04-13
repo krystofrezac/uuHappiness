@@ -1,3 +1,20 @@
+/** IT'S DUPLICATED IN injected.js */
+const getQuestionHash = async (question) => {
+  const hashSource = [
+    JSON.stringify(question.task),
+    JSON.stringify(question.answerList),
+  ].toString();
+
+  // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest#converting_a_digest_to_a_hex_string
+  const msgUint8 = new TextEncoder().encode(hashSource);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return hashHex;
+};
+
 const getMaybeLocalizedValue = (maybeLocalized) => {
   if (typeof maybeLocalized === "string") return maybeLocalized;
 
@@ -53,7 +70,7 @@ const listenForMessages = () => {
   };
 
   const handleGetQuestion = async (message) => {
-    const { question: questionToFind, courseId } = message;
+    const { questionHash, courseId } = message;
 
     const questionMap = await chrome.storage.local
       .get([courseId, "questionMap"])
@@ -67,14 +84,18 @@ const listenForMessages = () => {
     }
 
     const questionMapValues = Object.values(questionMap);
-    const foundQuestion = questionMapValues.find((question) => {
-      // TODO: compare answers
-      return (
-        question.task &&
-        getMaybeLocalizedValue(question.task) ===
-          getMaybeLocalizedValue(questionToFind.task)
-      );
-    });
+    const questionsWithMatchedPromises = questionMapValues.map(
+      async (question) => {
+        const currentQuestionHash = await getQuestionHash(question);
+        return { matched: currentQuestionHash === questionHash, question };
+      },
+    );
+    const questionsWithMatched = await Promise.all(
+      questionsWithMatchedPromises,
+    );
+    const foundQuestion = questionsWithMatched.find(
+      (question) => question.matched,
+    )?.question;
 
     window.postMessage({
       type: "getQuestionResult",
