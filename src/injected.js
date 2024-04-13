@@ -4,12 +4,29 @@ const courseId = window.location.href.match(
   /(?<=uu-coursekit-courseg01\/)[^\/]*/,
 )[0];
 
+/** IT'S DUPLICATED IN content.js */
+const getQuestionHash = async (question) => {
+  const hashSource = [
+    JSON.stringify(question.task),
+    JSON.stringify(question.answerList),
+  ].toString();
+
+  // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest#converting_a_digest_to_a_hex_string
+  const msgUint8 = new TextEncoder().encode(hashSource);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return hashHex;
+};
+
 const overrideFetch = () => {
-  const addRawQuestionPlacholderToTask = (question) => {
+  const addHashPlacholderToTask = async (question) => {
     const { task } = question;
-    const placholder = `[raw_question:${encodeURIComponent(
-      JSON.stringify(question),
-    )}]`;
+    const placholder = `[question_hash:${await getQuestionHash(question)}]\\n`;
+
+    if (!task) return placholder;
 
     if (!task.cs) return `${task}${placholder}`;
 
@@ -34,17 +51,22 @@ const overrideFetch = () => {
     const json = await response
       .clone()
       .json()
-      .then((data) => {
-        const mappedQuestionMapEntries = Object.entries(data.questionMap).map(
-          ([key, question]) => {
-            const mappedQuestion = {
-              ...question,
-              task: addRawQuestionPlacholderToTask(question),
-            };
-            return [key, mappedQuestion];
-          },
+      .then(async (data) => {
+        const mappedQuestionMapEntriesPromises = Object.entries(
+          data.questionMap,
+        ).map(async ([key, question]) => {
+          const mappedQuestion = {
+            ...question,
+            task: await addHashPlacholderToTask(question),
+          };
+          return [key, mappedQuestion];
+        });
+        const mappedQuestionMapEntries = await Promise.all(
+          mappedQuestionMapEntriesPromises,
         );
-        const mappedQuestionMap = Object.fromEntries(mappedQuestionMapEntries);
+        const mappedQuestionMap = Object.fromEntries(
+          await Promise.all(mappedQuestionMapEntries),
+        );
         return { ...data, questionMap: mappedQuestionMap };
       });
     return JSON.stringify(json);
@@ -54,11 +76,16 @@ const overrideFetch = () => {
     const json = await response
       .clone()
       .json()
-      .then((data) => {
-        const mappedQuestionList = data.questionList.map((question) => ({
-          ...question,
-          task: addRawQuestionPlacholderToTask(question),
-        }));
+      .then(async (data) => {
+        const mappedQuestionListPromises = data.questionList.map(
+          async (question) => ({
+            ...question,
+            task: await addHashPlacholderToTask(question),
+          }),
+        );
+        const mappedQuestionList = await Promise.all(
+          mappedQuestionListPromises,
+        );
         return { ...data, questionList: mappedQuestionList };
       });
     return JSON.stringify(json);
@@ -80,7 +107,7 @@ const overrideFetch = () => {
 };
 
 const watchCurrentQuestion = () => {
-  let currentRawQuestion;
+  let currentQuestionHash;
 
   setInterval(() => {
     const container = document.querySelector(
@@ -89,18 +116,16 @@ const watchCurrentQuestion = () => {
     const containerHtml = container?.innerHTML;
     if (!containerHtml) return;
 
-    const rawQuestion = containerHtml.match(
-      /(?<=\[raw_question:)[^\]]+(?=\])/,
+    const questionHash = containerHtml.match(
+      /(?<=\[question_hash:)[^\]]+(?=\])/,
     )?.[0];
-    if (!rawQuestion) return;
-    if (currentRawQuestion === rawQuestion) return;
-    currentRawQuestion = rawQuestion;
-
-    const rawQuestionDecoded = JSON.parse(decodeURIComponent(rawQuestion));
+    if (!questionHash) return;
+    if (currentQuestionHash === questionHash) return;
+    currentQuestionHash = questionHash;
 
     window.postMessage({
       type: "getQuestion",
-      question: rawQuestionDecoded,
+      questionHash,
       courseId,
     });
     document.getElementById(DIALOG_ID)?.remove();
@@ -179,7 +204,7 @@ const addAnswerUi = () => {
       .map(getMaybeLocalizedValue);
     if (correctAnswers.length > 0) return makeUl(correctAnswers);
 
-    return "Žádná z odpovědí není správná.";
+    return "Žádná z předcházejících odpovědí není správná.";
   };
   const renderOrderAnswer = () => {
     const answersInOrder = question.correctAnswerOrder.map((answerIndex) =>
