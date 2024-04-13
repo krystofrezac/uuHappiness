@@ -24,7 +24,9 @@ const getQuestionHash = async (question) => {
 const overrideFetch = () => {
   const addHashPlacholderToTask = async (question) => {
     const { task } = question;
-    const placholder = `[question_hash:${await getQuestionHash(question)}]\\n`;
+    const placholder = `<br/>[question_hash:${await getQuestionHash(
+      question,
+    )}]`;
 
     if (!task) return placholder;
 
