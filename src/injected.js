@@ -24,18 +24,16 @@ const getQuestionHash = async (question) => {
 const overrideFetch = () => {
   const addHashPlacholderToTask = async (question) => {
     const { task } = question;
-    const placholder = `<br/>[question_hash:${await getQuestionHash(
-      question,
-    )}]`;
+    const placholder = `[question_hash:${await getQuestionHash(question)}]`;
 
     if (!task) return placholder;
 
-    if (!task.cs) return `${task}${placholder}`;
+    if (!task.cs) return `${task}<br/>${placholder}`;
 
     return {
       ...task,
-      cs: `${task.cs}${placholder}`,
-      en: `${task.en}${placholder}`,
+      cs: `${task.cs}<br/>${placholder}`,
+      en: `${task.en}<br/>${placholder}`,
     };
   };
 
@@ -188,12 +186,14 @@ const addAnswerUi = () => {
     return hr;
   };
 
+  const removeUui5String = (source) => source.replaceAll("<uu5string/>", "");
+
   const renderUknownQuestion = () => {
     return "Don't know answer for this question. Maybe you forgot to load it?";
   };
   const renderSingleAnswerFromList = () => {
-    return getMaybeLocalizedValue(
-      question.answerList[question.correctAnswerIndex],
+    return removeUui5String(
+      getMaybeLocalizedValue(question.answerList[question.correctAnswerIndex]),
     );
   };
   const renderYesNoAnswer = () => {
@@ -203,25 +203,27 @@ const addAnswerUi = () => {
   const renderMultiAnswer = () => {
     const correctAnswers = question.answerList
       .filter((_, index) => question.correctAnswerIndexList.includes(index))
-      .map(getMaybeLocalizedValue);
+      .map((answer) => removeUui5String(getMaybeLocalizedValue(answer)));
     if (correctAnswers.length > 0) return makeUl(correctAnswers);
 
     return "Žádná z předcházejících odpovědí není správná.";
   };
   const renderOrderAnswer = () => {
     const answersInOrder = question.correctAnswerOrder.map((answerIndex) =>
-      getMaybeLocalizedValue(question.answerList[answerIndex]),
+      removeUui5String(
+        getMaybeLocalizedValue(question.answerList[answerIndex]),
+      ),
     );
 
     return makeOl(answersInOrder);
   };
   const renderPairAnswer = () => {
     return question.pairList.map((pair, index) => {
-      const first = getMaybeLocalizedValue(
-        question.answerList[0][pair.answerIndex],
+      const first = removeUui5String(
+        getMaybeLocalizedValue(question.answerList[0][pair.answerIndex]),
       );
-      const second = getMaybeLocalizedValue(
-        question.answerList[1][pair.pairAnswerIndex],
+      const second = removeUui5String(
+        getMaybeLocalizedValue(question.answerList[1][pair.pairAnswerIndex]),
       );
       const children = [makeUl([first, second])];
 
@@ -235,9 +237,15 @@ const addAnswerUi = () => {
   };
   const renderTripletAnswer = () => {
     question.tripletList.map((triplet) => {
-      const first = getMaybeLocalizedValue(question.answerList[0][triplet[0]]);
-      const second = getMaybeLocalizedValue(question.answerList[1][triplet[1]]);
-      const third = getMaybeLocalizedValue(question.answerList[2][triplet[2]]);
+      const first = removeUui5String(
+        getMaybeLocalizedValue(question.answerList[0][triplet[0]]),
+      );
+      const second = removeUui5String(
+        getMaybeLocalizedValue(question.answerList[1][triplet[1]]),
+      );
+      const third = removeUui5String(
+        getMaybeLocalizedValue(question.answerList[2][triplet[2]]),
+      );
       const children = [makeUl([first, second, third])];
 
       const isLast = question.pairList.length === index + 1;
