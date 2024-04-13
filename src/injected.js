@@ -199,7 +199,17 @@ const addAnswerUi = () => {
   const renderYesNoAnswer = () => {
     return question.correctAnswerIndex === 0 ? "Ano" : "Ne";
   };
-  const renderMultiPlaceholderAnswer = () => {};
+  const renderMultiPlaceholderAnswer = () => {
+    const correctAnswers = question.correctAnswerIndexList.map(
+      (correctAnswerIndex, index) =>
+        removeUui5String(
+          getMaybeLocalizedValue(
+            question.answerList[index][correctAnswerIndex],
+          ),
+        ),
+    );
+    return makeOl(correctAnswers);
+  };
   const renderMultiAnswer = () => {
     const correctAnswers = question.answerList
       .filter((_, index) => question.correctAnswerIndexList.includes(index))
