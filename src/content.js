@@ -36,11 +36,11 @@ const sendIconUrl = () => {
 
 const listenForMessages = () => {
   const handleSaveLesson = async (message) => {
-    const { lesson, courseId } = message;
+    const { lesson } = message;
 
     const savedQuestionMap = await chrome.storage.local
-      .get([courseId, "questionMap"])
-      .then((value) => value[courseId]?.questionMap);
+      .get(["questionMap"])
+      .then((value) => value?.questionMap);
 
     const answerFields = [
       "correctAnswerIndex",
@@ -50,53 +50,48 @@ const listenForMessages = () => {
       "tripletList",
     ];
 
-    const questionMapEntries = Object.entries(lesson.questionMap);
-    const questionMapWithAnswersEntries = questionMapEntries.filter(
-      ([_, question]) =>
-        answerFields.some((answerField) => {
-          const fieldValue = question[answerField];
-          return fieldValue !== undefined && fieldValue !== null;
-        }),
+    const questions = Object.values(lesson.questionMap);
+    const questionsWithAnswers = questions.filter((question) =>
+      answerFields.some((answerField) => {
+        const fieldValue = question[answerField];
+        return fieldValue !== undefined && fieldValue !== null;
+      }),
     );
-    const quetsionMapWithAnswers = Object.fromEntries(
-      questionMapWithAnswersEntries,
+    const questsionsWithHash = await Promise.all(
+      questionsWithAnswers.map(async (question) => ({
+        ...question,
+        hash: await getQuestionHash(question),
+      })),
+    );
+    const questionsWithHashAsObject = questsionsWithHash.reduce(
+      (acc, question) => ({
+        ...acc,
+        [question.hash]: question,
+      }),
+      {},
     );
 
     chrome.storage.local.set({
-      [courseId]: {
-        questionMap: { ...savedQuestionMap, ...quetsionMapWithAnswers },
-      },
+      questionMap: { ...savedQuestionMap, ...questionsWithHashAsObject },
     });
   };
 
   const handleGetQuestion = async (message) => {
-    const { questionHash, courseId } = message;
+    const { questionHash } = message;
 
     const questionMap = await chrome.storage.local
-      .get([courseId, "questionMap"])
-      .then((value) => value[courseId]?.questionMap);
+      .get(["questionMap"])
+      .then((value) => value?.questionMap);
 
     if (!questionMap) {
       window.postMessage({
         type: "getQuestionResult",
         question: undefined,
       });
+      return;
     }
 
-    const questionMapValues = Object.values(questionMap);
-    const questionsWithMatchedPromises = questionMapValues.map(
-      async (question) => {
-        const currentQuestionHash = await getQuestionHash(question);
-        return { matched: currentQuestionHash === questionHash, question };
-      },
-    );
-    const questionsWithMatched = await Promise.all(
-      questionsWithMatchedPromises,
-    );
-    const foundQuestion = questionsWithMatched.find(
-      (question) => question.matched,
-    )?.question;
-
+    const foundQuestion = questionMap[questionHash];
     window.postMessage({
       type: "getQuestionResult",
       question: foundQuestion,

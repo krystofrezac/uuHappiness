@@ -1,9 +1,5 @@
 const { fetch: origFetch } = window;
 
-const courseId = window.location.href.match(
-  /(?<=uu-coursekit-courseg01\/)[^\/]*/,
-)[0];
-
 /** IT'S DUPLICATED IN content.js */
 const getQuestionHash = async (question) => {
   const hashSource = [
@@ -42,7 +38,7 @@ const overrideFetch = () => {
       .clone()
       .json()
       .then((body) => {
-        window.postMessage({ type: "saveLesson", lesson: body, courseId }, "*");
+        window.postMessage({ type: "saveLesson", lesson: body }, "*");
       });
     alert("uuHappiness: Loaded");
   };
@@ -126,7 +122,6 @@ const watchCurrentQuestion = () => {
     window.postMessage({
       type: "getQuestion",
       questionHash,
-      courseId,
     });
     document.getElementById(DIALOG_ID)?.remove();
   }, 100);
