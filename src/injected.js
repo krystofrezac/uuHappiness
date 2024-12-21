@@ -17,19 +17,24 @@ const getQuestionHash = async (question) => {
   return hashHex;
 };
 
+const addUuStringToTask = (task) => {
+  if (task.includes("<uu5string/>")) return task;
+  return `<uu5string/>${task}`;
+};
+
 const overrideFetch = () => {
   const addHashPlacholderToTask = async (question) => {
     const { task } = question;
-    const placholder = `[question_hash:${await getQuestionHash(question)}]`;
+    const placholder = `<span style=\"<uu5json/>{\\\"font-size\\\": \\\"0\\\", \\\"opacity\\\": \\\"0\\\"}\">[question_hash:${await getQuestionHash(question)}]</span>`;
 
     if (!task) return placholder;
 
-    if (!task.cs) return `${task}<br/>${placholder}`;
+    if (!task.cs) return addUuStringToTask(`${task}${placholder}`);
 
     return {
       ...task,
-      cs: `${task.cs}<br/>${placholder}`,
-      en: `${task.en}<br/>${placholder}`,
+      cs: addUuStringToTask(`${task.cs}${placholder}`),
+      en: addUuStringToTask(`${task.en}${placholder}`),
     };
   };
 
@@ -333,14 +338,10 @@ const addAnswerUi = () => {
     document.body.append(container);
 
     const button = document.createElement("button");
-    button.style.cssText = "background: none; border: none; cursor: pointer;";
+    button.style.cssText =
+      "background: black; opacity: 0.05; border: none; cursor: pointer; height: 50px; width: 50px;";
     button.onclick = toggleDialog;
     container.append(button);
-
-    const icon = document.createElement("img");
-    icon.src = iconUrl;
-    icon.style.cssText = "border-radius: 100%; width: 50px;";
-    button.append(icon);
   }, 100);
 };
 
