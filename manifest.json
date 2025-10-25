@@ -12,7 +12,7 @@
   "permissions": ["storage", "unlimitedStorage", "nativeMessaging"],
   "content_scripts": [
     {
-      "matches": ["https://uuapp.plus4u.net/uu-coursekit*"],
+      "matches": ["https://uuapp.plus4u.net/uu-studyengine-maing01*"],
       "js": ["./src/content.js"],
       "run_at": "document_start",
       "all_frames": true

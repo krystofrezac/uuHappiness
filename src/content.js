@@ -1,26 +1,3 @@
-/** IT'S DUPLICATED IN injected.js */
-const getQuestionHash = async (question) => {
-  const hashSource = [
-    JSON.stringify(question.task),
-    JSON.stringify(question.answerList),
-  ].toString();
-
-  // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest#converting_a_digest_to_a_hex_string
-  const msgUint8 = new TextEncoder().encode(hashSource);
-  const hashBuffer = await crypto.subtle.digest("SHA-1", msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return hashHex;
-};
-
-const getMaybeLocalizedValue = (maybeLocalized) => {
-  if (typeof maybeLocalized === "string") return maybeLocalized;
-
-  return maybeLocalized.cs;
-};
-
 const injectScript = () => {
   const script = document.createElement("script");
   script.src = chrome.runtime.getURL("src/injected.js");
@@ -36,43 +13,14 @@ const sendIconUrl = () => {
 
 const listenForMessages = () => {
   const handleSaveLesson = async (message) => {
-    const { lesson } = message;
+    const { questionMap } = message;
 
     const savedQuestionMap = await chrome.storage.local
       .get(["questionMap"])
       .then((value) => value?.questionMap);
 
-    const answerFields = [
-      "correctAnswerIndex",
-      "pairList",
-      "correctAnswerIndexList",
-      "correctAnswerOrder",
-      "tripletList",
-    ];
-
-    const questions = Object.values(lesson.questionMap);
-    const questionsWithAnswers = questions.filter((question) =>
-      answerFields.some((answerField) => {
-        const fieldValue = question[answerField];
-        return fieldValue !== undefined && fieldValue !== null;
-      }),
-    );
-    const questsionsWithHash = await Promise.all(
-      questionsWithAnswers.map(async (question) => ({
-        ...question,
-        hash: await getQuestionHash(question),
-      })),
-    );
-    const questionsWithHashAsObject = questsionsWithHash.reduce(
-      (acc, question) => ({
-        ...acc,
-        [question.hash]: question,
-      }),
-      {},
-    );
-
     chrome.storage.local.set({
-      questionMap: { ...savedQuestionMap, ...questionsWithHashAsObject },
+      questionMap: { ...savedQuestionMap, ...questionMap },
     });
   };
 

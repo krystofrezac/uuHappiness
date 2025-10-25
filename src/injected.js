@@ -4,7 +4,7 @@ const { fetch: origFetch } = window;
 const getQuestionHash = async (question) => {
   const hashSource = [
     JSON.stringify(question.task),
-    JSON.stringify(question.answerList),
+    JSON.stringify(question.answerList?.sort()),
   ].toString();
 
   // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest#converting_a_digest_to_a_hex_string
@@ -29,7 +29,8 @@ const overrideFetch = () => {
 
     if (!task) return placholder;
 
-    if (!task.cs) return addUuStringToTask(`${task}${placholder}`);
+    if (typeof task === "string")
+      return addUuStringToTask(`${task}${placholder}`);
 
     return {
       ...task,
@@ -42,8 +43,15 @@ const overrideFetch = () => {
     response
       .clone()
       .json()
-      .then((body) => {
-        window.postMessage({ type: "saveLesson", lesson: body }, "*");
+      .then(async (body) => {
+        const questionMapEntriesPromises = body.lessonContentList.map(
+          async (question) => [await getQuestionHash(question), question],
+        );
+        const questionMap = Object.fromEntries(
+          await Promise.all(questionMapEntriesPromises),
+        );
+        console.log("Saving ", questionMap);
+        window.postMessage({ type: "saveLesson", questionMap }, "*");
       });
     alert("uuHappiness: Loaded");
   };
@@ -53,22 +61,19 @@ const overrideFetch = () => {
       .clone()
       .json()
       .then(async (data) => {
-        const mappedQuestionMapEntriesPromises = Object.entries(
-          data.questionMap,
-        ).map(async ([key, question]) => {
-          const mappedQuestion = {
-            ...question,
-            task: await addHashPlacholderToTask(question),
-          };
-          return [key, mappedQuestion];
-        });
-        const mappedQuestionMapEntries = await Promise.all(
-          mappedQuestionMapEntriesPromises,
+        const mappedLessonContentListPromises = data.lessonContentList.map(
+          async (question) => {
+            const mappedQuestion = {
+              ...question,
+              task: await addHashPlacholderToTask(question),
+            };
+            return mappedQuestion;
+          },
         );
-        const mappedQuestionMap = Object.fromEntries(
-          await Promise.all(mappedQuestionMapEntries),
+        const mappedLessonContentList = await Promise.all(
+          mappedLessonContentListPromises,
         );
-        return { ...data, questionMap: mappedQuestionMap };
+        return { ...data, lessonContentList: mappedLessonContentList };
       });
     return JSON.stringify(json);
   };
@@ -78,7 +83,7 @@ const overrideFetch = () => {
       .clone()
       .json()
       .then(async (data) => {
-        const mappedQuestionListPromises = data.questionList.map(
+        const mappedQuestionListPromises = data.testContentList.map(
           async (question) => ({
             ...question,
             task: await addHashPlacholderToTask(question),
@@ -87,7 +92,7 @@ const overrideFetch = () => {
         const mappedQuestionList = await Promise.all(
           mappedQuestionListPromises,
         );
-        return { ...data, questionList: mappedQuestionList };
+        return { ...data, testContentList: mappedQuestionList };
       });
     return JSON.stringify(json);
   };
@@ -96,11 +101,11 @@ const overrideFetch = () => {
     const response = await origFetch(...args);
     const url = response.url;
 
-    if (url.includes("loadLessonForStudent")) {
+    if (url.includes("/lesson/loadContentForStudentByBidAndOid")) {
       handleLessonResponse(response);
       response.text = getLessonTextMiddleware(response);
     }
-    if (url.includes("loadTestForStudent")) {
+    if (url.includes("/test/loadContentByBidAndOid")) {
       response.text = getTestTextMiddleware(response);
     }
     return response;
@@ -111,19 +116,15 @@ const watchCurrentQuestion = () => {
   let currentQuestionHash;
 
   setInterval(() => {
-    const container = document.querySelector(
-      "div[class*=uu-coursekit-question-t]",
-    );
-    const containerHtml = container?.innerHTML;
-    if (!containerHtml) return;
+    const html = document.body.innerHTML;
 
-    const questionHash = containerHtml.match(
-      /(?<=\[question_hash:)[^\]]+(?=\])/,
-    )?.[0];
+    const questionHash = html.match(/(?<=\[question_hash:)[^\]]+(?=\])/)?.[0];
     if (!questionHash) return;
     if (currentQuestionHash === questionHash) return;
     currentQuestionHash = questionHash;
 
+    console.debug(`Detected question hash [${questionHash}]`);
+    console.debug(`Sending "getQuestion" message`);
     window.postMessage({
       type: "getQuestion",
       questionHash,
@@ -141,14 +142,18 @@ const addAnswerUi = () => {
   window.addEventListener("message", (messageEvent) => {
     if (messageEvent.data.type === "iconUrl")
       iconUrl = messageEvent.data.iconUrl;
-    if (messageEvent.data.type === "getQuestionResult")
+    if (messageEvent.data.type === "getQuestionResult") {
+      console.debug("Received 'getQuestionResult'", messageEvent.data);
       question = messageEvent.data.question;
+    }
   });
 
   const getMaybeLocalizedValue = (task) => {
     if (typeof task === "string") return task;
 
-    return task.cs;
+    if (task.cs) return task.cs;
+    if (task.en) return task.en;
+    return "?";
   };
   const isDefined = (value) => value !== undefined && value !== null;
 
@@ -186,91 +191,19 @@ const addAnswerUi = () => {
     return hr;
   };
 
-  const removeUui5String = (source) => source.replaceAll("<uu5string/>", "");
-
-  const renderUknownQuestion = () => {
-    return "Don't know answer for this question. Maybe you forgot to load it?";
-  };
-  const renderSingleAnswerFromList = () => {
-    return removeUui5String(
-      getMaybeLocalizedValue(question.answerList[question.correctAnswerIndex]),
-    );
-  };
-  const renderYesNoAnswer = () => {
-    return question.correctAnswerIndex === 0 ? "Ano" : "Ne";
-  };
-  const renderMultiPlaceholderAnswer = () => {
-    const correctAnswers = question.correctAnswerIndexList.map(
-      (correctAnswerIndex, index) =>
-        removeUui5String(
-          getMaybeLocalizedValue(
-            question.answerList[index][correctAnswerIndex],
-          ),
-        ),
-    );
-    return makeOl(correctAnswers);
-  };
-  const renderMultiAnswer = () => {
-    const correctAnswers = question.answerList
-      .filter((_, index) => question.correctAnswerIndexList.includes(index))
-      .map((answer) => removeUui5String(getMaybeLocalizedValue(answer)));
-    if (correctAnswers.length > 0) return makeUl(correctAnswers);
-
-    return "Žádná z předcházejících odpovědí není správná.";
-  };
-  const renderOrderAnswer = () => {
-    const answersInOrder = question.correctAnswerOrder.map((answerIndex) =>
-      removeUui5String(
-        getMaybeLocalizedValue(question.answerList[answerIndex]),
-      ),
-    );
-
-    return makeOl(answersInOrder);
-  };
-  const renderPairAnswer = () => {
-    return question.pairList.map((pair, index) => {
-      const first = removeUui5String(
-        getMaybeLocalizedValue(question.answerList[0][pair.answerIndex]),
+  const removeUuXml = (source) =>
+    source
+      .replaceAll("<uu5string/>", "")
+      .replaceAll(/style="[^"]*"/g, "")
+      .replace(
+        /<Uu5RichTextBricks\.Block[^>]*uu5String="([^"]*)"[^>]*\/>/g,
+        (_, uu5String) => uu5String,
       );
-      const second = removeUui5String(
-        getMaybeLocalizedValue(question.answerList[1][pair.pairAnswerIndex]),
-      );
-      const children = [makeUl([first, second])];
 
-      const isLast = question.pairList.length === index + 1;
-      if (!isLast) {
-        children.push(makeHr());
-      }
-
-      return makeDiv(children);
-    });
-  };
-  const renderTripletAnswer = () => {
-    question.tripletList.map((triplet) => {
-      const first = removeUui5String(
-        getMaybeLocalizedValue(question.answerList[0][triplet[0]]),
-      );
-      const second = removeUui5String(
-        getMaybeLocalizedValue(question.answerList[1][triplet[1]]),
-      );
-      const third = removeUui5String(
-        getMaybeLocalizedValue(question.answerList[2][triplet[2]]),
-      );
-      const children = [makeUl([first, second, third])];
-
-      const isLast = question.pairList.length === index + 1;
-      if (!isLast) {
-        children.push(makeHr());
-      }
-
-      return makeDiv(children);
-    });
-  };
-  const renderUnknownQuestionType = () => {
-    return "Don't know how to process this type of question :(";
-  };
+  const getMessage = (source) => removeUuXml(getMaybeLocalizedValue(source));
 
   const openDialog = () => {
+    console.info("question", question);
     const dialog = document.createElement("div");
     dialog.id = DIALOG_ID;
     dialog.style.cssText =
@@ -287,25 +220,46 @@ const addAnswerUi = () => {
     answerContainer.style.cssText = "padding: 20px; color: #5E646A;";
     dialog.append(answerContainer);
 
-    if (!question) return answerContainer.append(renderUknownQuestion());
-    if (isDefined(question.correctAnswerIndex) && question.answerList)
-      return answerContainer.append(renderSingleAnswerFromList());
-    if (isDefined(question.correctAnswerIndex))
-      return answerContainer.append(renderYesNoAnswer());
-    if (
-      question.correctAnswerIndexList &&
-      Array.isArray(question.answerList[0])
-    )
-      return answerContainer.append(renderMultiPlaceholderAnswer());
-    if (question.correctAnswerIndexList)
-      return answerContainer.append(renderMultiAnswer());
-    if (question.correctAnswerOrder)
-      return answerContainer.append(renderOrderAnswer());
-    if (question.pairList) return answerContainer.append(...renderPairAnswer());
-    if (question.tripletList)
-      return answerContainer.append(renderTripletAnswer());
+    if (!question) return answerContainer.append("Don't know this question :(");
 
-    answerContainer.append(renderUnknownQuestionType());
+    const typeMap = {
+      // One correct
+      T01: () => getMessage(question.answerList[0]),
+      // One correct
+      T02: () => getMessage(question.answerList[0]),
+      // Multi choice
+      T03: () =>
+        makeOl(
+          question.correctAnswerIndexList.map((answerIndex) =>
+            getMessage(question.answerList[answerIndex]),
+          ),
+        ),
+      // Pairing
+      T06: () =>
+        makeDiv(
+          question.answerList.map((answer, index) => {
+            const isLast = question.answerList.length - 1 === index;
+            const mappedParts = answer.map((part) => getMessage(part));
+
+            const children = [makeUl(mappedParts)];
+            if (!isLast) children.push(makeHr());
+            return makeDiv(children);
+          }),
+        ),
+      // Order
+      T07: () =>
+        makeOl(question.answerList.map((answer) => getMessage(answer))),
+
+      // Yes/no
+      T08: () => `${question.correctAnswer ? "Yes" : "No"}`,
+    };
+
+    const render = typeMap[question.type];
+    if (!render)
+      return answerContainer.append(
+        `Don't know how to render answer to ${question.type}`,
+      );
+    answerContainer.append(render());
   };
   const closeDialog = () => {
     document.getElementById(DIALOG_ID).remove();
@@ -321,7 +275,7 @@ const addAnswerUi = () => {
   setInterval(() => {
     if (!iconUrl) return;
     const isQuestion = !!document.querySelector(
-      "div[class*=uu-coursekit-question-t]",
+      "div[class*=uucoursekitcore-question-]",
     );
     if (!isQuestion) {
       document.getElementById(CONTAINER_ID)?.remove();
