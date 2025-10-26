@@ -2,9 +2,14 @@ const { fetch: origFetch } = window;
 
 /** IT'S DUPLICATED IN content.js */
 const getQuestionHash = async (question) => {
+  const sortedAnswerList = [...(question.answerList ?? [])]
+    // Because of T06 which has array of arrays
+    .flat()
+    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
   const hashSource = [
     JSON.stringify(question.task),
-    JSON.stringify(question.answerList?.sort()),
+    JSON.stringify(sortedAnswerList),
   ].toString();
 
   // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest#converting_a_digest_to_a_hex_string
@@ -25,6 +30,7 @@ const addUuStringToTask = (task) => {
 const overrideFetch = () => {
   const addHashPlacholderToTask = async (question) => {
     const { task } = question;
+    console.log("hash", question, await getQuestionHash(question));
     const placholder = `<span style=\"<uu5json/>{\\\"font-size\\\": \\\"0\\\", \\\"opacity\\\": \\\"0\\\"}\">[question_hash:${await getQuestionHash(question)}]</span>`;
 
     if (!task) return placholder;
